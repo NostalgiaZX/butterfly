@@ -109,8 +109,8 @@ void setup() {
   Serial.begin(CRSF_BAUDRATE, SERIAL_8N1, SERIAL_FULL); // 初始化串口
   crsf.begin(Serial);                                   // 初始化接收机
 
-  servo_l.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 初始化 L 舵机引脚
-  servo_r.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 初始化 R 舵机引脚
+  servo_l.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 初始化 L 舵机引脚
+  servo_r.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 初始化 R 舵机引脚
   YDIServoAngleControl( SERVO_L, YDIFLY_SERVO_ANGLE_L_INIT );
   YDIServoAngleControl( SERVO_R, YDIFLY_SERVO_ANGLE_R_INIT );
 
