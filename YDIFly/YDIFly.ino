@@ -18,8 +18,8 @@
 #include <Servo.h>
 
 /******************** 基本参数 ******************* */
-#define YDIFLY_SERVO_L_PIN                  9       // 引脚设置
-#define YDIFLY_SERVO_R_PIN                  10      // 引脚设置
+#define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
+#define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
 #define YDIFLY_LED_PIN                      16      // 引脚设置
 
 #define YDIFLY_REMOTE_JOY_MID               1500    // 遥控摇杆的中间值
@@ -45,7 +45,7 @@
 #define YDIFLY_FACTOR_FILTER                0.2f
 
 /******************** 翅膀扑翼周期设置 ******************* */
-#define YDIFLY_CYCLE_MIN                    235
+#define YDIFLY_CYCLE_MIN                    150
 #define YDIFLY_CYCLE_MAX                    500
 
 /******************** 翅膀扑翼幅度设置 ******************* */
