@@ -55,7 +55,7 @@
 #define YDIFLY_AMP2                         50      // 扑翼幅度为 ±75°
 
 /******************** 翅膀上拍下拍速度差 ******************* */
-#define YDIFLY_SPEED_DIFF                   0       // 速度差需要在 -YDIFLY_CONTROL_CYCLE~YDIFLY_CONTROL_CYCLE 之间
+#define YDIFLY_SPEED_DIFF                   -5       // 速度差需要在 -YDIFLY_CONTROL_CYCLE~YDIFLY_CONTROL_CYCLE 之间
 
 /******************** 任务控制周期参数 ******************* */
 #define YDIFLY_CONTROL_CYCLE                25     // 舵机的控制周期，ms
@@ -179,24 +179,24 @@ void loop() {
     ydifly.remote_last.freq  = ydifly.remote.freq;
     ydifly.remote_last.amp   = ydifly.remote.amp;
     ydifly.remote_last.offset= ydifly.remote.offset;
-
+    float kpitchrange=1000;
     /* 舵机角度控制 */
     if( ydifly.remote.pitch > 0 )
     {
-        angle_l_mid = (YDIFLY_SERVO_ANGLE_L_INIT-YDIFLY_SERVO_ANGLE_L_MIN-ydifly.remote.amp)*ydifly.remote.pitch/1500;
-        angle_r_mid = (YDIFLY_SERVO_ANGLE_R_INIT-YDIFLY_SERVO_ANGLE_R_MIN-ydifly.remote.amp)*ydifly.remote.pitch/1500;
+        angle_l_mid = (YDIFLY_SERVO_ANGLE_L_INIT-YDIFLY_SERVO_ANGLE_L_MIN-ydifly.remote.amp)*ydifly.remote.pitch/kpitchrange;
+        angle_r_mid = (YDIFLY_SERVO_ANGLE_R_INIT-YDIFLY_SERVO_ANGLE_R_MIN-ydifly.remote.amp)*ydifly.remote.pitch/kpitchrange;
         temp = (angle_l_mid>angle_r_mid) ? angle_r_mid : angle_l_mid;
     }
     else
     {
-        angle_l_mid = (YDIFLY_SERVO_ANGLE_L_MAX-YDIFLY_SERVO_ANGLE_L_INIT-ydifly.remote.amp)*ydifly.remote.pitch/1500;
-        angle_r_mid = (YDIFLY_SERVO_ANGLE_R_MAX-YDIFLY_SERVO_ANGLE_R_INIT-ydifly.remote.amp)*ydifly.remote.pitch/1500;
+        angle_l_mid = (YDIFLY_SERVO_ANGLE_L_MAX-YDIFLY_SERVO_ANGLE_L_INIT-ydifly.remote.amp)*ydifly.remote.pitch/kpitchrange;
+        angle_r_mid = (YDIFLY_SERVO_ANGLE_R_MAX-YDIFLY_SERVO_ANGLE_R_INIT-ydifly.remote.amp)*ydifly.remote.pitch/kpitchrange;
         temp = (angle_l_mid>angle_r_mid) ? angle_l_mid : angle_r_mid;
     }
-
+    float kanglebiase=1.0f;
     /* 舵机扑翼中位值计算 */
-    angle_l_mid = YDIFLY_SERVO_ANGLE_L_INIT - temp + ydifly.remote.offset*YDIFLY_FACTOR_OFFSET;
-    angle_r_mid = YDIFLY_SERVO_ANGLE_R_INIT - temp - ydifly.remote.offset*YDIFLY_FACTOR_OFFSET;
+    angle_l_mid = YDIFLY_SERVO_ANGLE_L_INIT - kanglebiase*temp + ydifly.remote.offset*YDIFLY_FACTOR_OFFSET;
+    angle_r_mid = YDIFLY_SERVO_ANGLE_R_INIT - kanglebiase*temp - ydifly.remote.offset*YDIFLY_FACTOR_OFFSET;
     
     if( ydifly.remote.freq > 10 )       // 如果有给油门，则进入起飞程序
     {
