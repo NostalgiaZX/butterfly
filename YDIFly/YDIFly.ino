@@ -16,7 +16,7 @@
  */
 #include <AlfredoCRSF.h>
 #include <Servo.h>
-
+#include <BasicLinearAlgebra.h>
 /******************** 基本参数 ******************* */
 #define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
 #define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
@@ -95,12 +95,10 @@ AlfredoCRSF crsf;
 Servo servo_l, servo_r;
 float time_now = 0;
 float time_init = 0;
-
 static void ReceiverData( ydifly_remote_cmd_t* remote );
 static void YDIFlyServoSinControl( float l_angle_max, float l_angle_min, float r_angle_max, float r_angle_min, float T, float speed_diff );
 static void YDIServoAngleControl( ydifly_servo_name_e name, float angle );
 static void YDISendBattery(float voltage, float current, float capacity, float remaining);
-
 void setup() {
   // put your setup code here, to run once:   
   pinMode(YDIFLY_LED_PIN,OUTPUT);     // 初始化LED灯控制引脚
