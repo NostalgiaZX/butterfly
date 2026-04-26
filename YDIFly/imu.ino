@@ -63,34 +63,32 @@ class IMU{
     }
   void update(Matrix<3,1> gyro,Matrix<3,1> acc){
         unsigned long now = micros();
-        float dt = (now - lastMicros) / 1000000.0f;
-        lastMicros = now;
-
-        // 2. 归一化加速度计测量值
+        float dt = (now - lastms) / 1000000.0f;
+        lastms = now;
         float aNorm = sqrt(acc(0)*acc(0) + acc(1)*acc(1) + acc(2)*acc(2));
         if (aNorm < 0.001f) return;
         acc = acc / aNorm;
 
-        // 3. 提取当前四元数代表的“估计重力方向” (机体坐标系下的重力向量)
+        // 提取当前四元数代表的“估计重力方向” (机体坐标系下的重力向量)
         // 这是四元数旋转矩阵的第三列：v = [2(xz-wy), 2(yz+wx), w^2-x^2-y^2+z^2]
         float vx = 2.0f * (q_(1) * q_(3) - q_(0) * q_(2));
         float vy = 2.0f * (q_(0) * q_(1) + q_(2) * q_(3));
         float vz = q_(0) * q_(0) - q_(1) * q_(1) - q_(2) * q_(2) + q_(3) * q_(3);
 
-        // 4. 计算误差：测量值与估计值的叉乘 (Error is cross product of measured and estimated gravity)
+        // 计算误差：测量值与估计值的叉乘 (Error is cross product of measured and estimated gravity)
         // e = acc x v
         Matrix<3, 1> e;
         e(0) = acc(1) * vz - acc(2) * vy;
         e(1) = acc(2) * vx - acc(0) * vz;
         e(2) = acc(0) * vy - acc(1) * vx;
 
-        // 5. 误差积分
-        eInt_ += e * ki_ * dt;
+        // 误差积分
+        ei += e * ki_ * dt;
 
-        // 6. 修正陀螺仪角速度
-        Matrix<3, 1> correctedGyro = gyro + e * kp_ + eInt_;
+        // 修正陀螺仪角速度
+        Matrix<3, 1> correctedGyro = gyro + e * kp_ + ei;
 
-        // 7. 四元数微分方程更新: q_new = q + 0.5 * q * Omega * dt
+        // 四元数微分方程更新: q_new = q + 0.5 * q * Omega * dt
         float qw = q_(0), qx = q_(1), qy = q_(2), qz = q_(3);
         float gx = correctedGyro(0), gy = correctedGyro(1), gz = correctedGyro(2);
 
@@ -105,4 +103,4 @@ class IMU{
   Matrix<3,1> getEulerangle(){
     return eulerangle;
   }
-}
+};

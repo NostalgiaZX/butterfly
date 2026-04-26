@@ -16,7 +16,6 @@
  */
 #include <AlfredoCRSF.h>
 #include <Servo.h>
-#include <BasicLinearAlgebra.h>
 /******************** 基本参数 ******************* */
 #define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
 #define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
