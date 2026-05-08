@@ -1,9 +1,9 @@
 /**
  * @file     : YDIFly.ino
- * @brief    : YDIFLY蝴蝶扑翼机开源代码，其中功能包括实现蝴蝶的基本遥控飞行，翅膀竖立功能等等，且可通过修改宏定义轻松修改代码参数，无须看懂代码
- * @author   : 一点创绘
- * @date     : 2025-11-1
- * @version  : v1.7.A  适用以LM-D02灵眸舵机为代表的 脉冲宽度825-2175 对应角度180度
+ * @brief    : 蝴蝶扑翼机代码，其中功能包括实现蝴蝶的基本遥控飞行，翅膀竖立功能等等，且可通过修改宏定义轻松修改代码参数，无须看懂代码
+ * @author   : Nostalgia
+ * @date     : 2026-5-8
+ * @version  : v1.7.A  
  * 
  * @license  : GPL 3.0 License
  * @changelog:
@@ -15,7 +15,7 @@
  * - v1.2 (2025-9-2): 初始版本，具有基本的扑翼飞行、翅膀并拢竖立等功能，可用ELRS遥控进行远程控制。
  */
 #include <AlfredoCRSF.h>
-#include <Servo.h>
+#include <ESP32Servo.h>
 /******************** 基本参数 ******************* */
 #define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
 #define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
@@ -103,8 +103,8 @@ void setup() {
   pinMode(YDIFLY_LED_PIN,OUTPUT);     // 初始化LED灯控制引脚
   digitalWrite(YDIFLY_LED_PIN, HIGH); // 打开LED灯
 
-  Serial.begin(CRSF_BAUDRATE, SERIAL_8N1, SERIAL_FULL); // 初始化串口
-  crsf.begin(Serial);                                   // 初始化接收机
+  Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1, 20, 21);     // 初始化串口 RX=GPIO20, TX=GPIO21
+  crsf.begin(Serial1);                                  // 初始化接收机
 
   servo_l.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 初始化 L 舵机引脚
   servo_r.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 初始化 R 舵机引脚
