@@ -19,7 +19,7 @@
 /******************** 基本参数 ******************* */
 #define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
 #define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
-#define YDIFLY_LED_PIN                      16      // 引脚设置
+#define YDIFLY_LED_PIN                      LED_BUILTIN      // 引脚设置
 
 #define YDIFLY_REMOTE_JOY_MID               1500    // 遥控摇杆的中间值
 
@@ -59,6 +59,7 @@
 /******************** 任务控制周期参数 ******************* */
 #define YDIFLY_CONTROL_CYCLE                25     // 舵机的控制周期，ms
 #define YDIFLY_LED_CYCLE                    200    // LED闪缩周期，ms
+#define YDIFLY_IMU_CYCLE                    10     // IMU姿态更新周期，ms（100Hz）
 
 
 typedef enum
@@ -85,6 +86,7 @@ typedef struct
     uint32_t sys_time_ms;           // 系统时间，单位ms
     uint32_t sys_time_ms_last;      // 以往时间，单位ms
     uint32_t led_time_ms_last;      // 以往时间，单位ms
+    uint32_t imu_time_ms_last;      // IMU上一次更新时间，单位ms
     ydifly_remote_cmd_t remote;     // 遥控相关参数
     ydifly_remote_cmd_t remote_last;// 上一次遥控参数
 }ydifly_control_t;
@@ -98,18 +100,27 @@ static void ReceiverData( ydifly_remote_cmd_t* remote );
 static void YDIFlyServoSinControl( float l_angle_max, float l_angle_min, float r_angle_max, float r_angle_min, float T, float speed_diff );
 static void YDIServoAngleControl( ydifly_servo_name_e name, float angle );
 static void YDISendBattery(float voltage, float current, float capacity, float remaining);
+/* IMU 姿态解算接口，定义于 imu.ino */
+bool  IMU_Init();
+void  IMU_Update();
+bool  IMU_IsReady();
+float IMU_GetRoll();
+float IMU_GetPitch();
+float IMU_GetYaw();
 void setup() {
   // put your setup code here, to run once:   
   pinMode(YDIFLY_LED_PIN,OUTPUT);     // 初始化LED灯控制引脚
-  digitalWrite(YDIFLY_LED_PIN, HIGH); // 打开LED灯
+  digitalWrite(YDIFLY_LED_PIN, LOW); // 先熄灭LED灯（约定：HIGH=亮，LOW=灭，与Blink一致）
 
-  Serial.begin(CRSF_BAUDRATE, SERIAL_8N1, SERIAL_FULL); // 初始化串口
-  crsf.begin(Serial);                                   // 初始化接收机
+  Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1, SERIAL_FULL); // 初始化串口
+  crsf.begin(Serial1);                                   // 初始化接收机
 
   servo_l.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 初始化 L 舵机引脚
   servo_r.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 初始化 R 舵机引脚
   YDIServoAngleControl( SERVO_L, YDIFLY_SERVO_ANGLE_L_INIT );
   YDIServoAngleControl( SERVO_R, YDIFLY_SERVO_ANGLE_R_INIT );
+
+  IMU_Init();   // 初始化 IMU（LSM6DS3 + Mahony 姿态解算）
 
   while( crsf.getChannel(3) < 800 )   // 检测是否连接到遥控
   {
@@ -120,12 +131,12 @@ void setup() {
     /* LED灯闪烁 */
     if( led_sta == 0 )
     {
-      digitalWrite(YDIFLY_LED_PIN, LOW); // 关闭LED灯
+      digitalWrite(YDIFLY_LED_PIN, HIGH); // 点亮LED灯
       led_sta = 1;
     }
     else
     {
-      digitalWrite(YDIFLY_LED_PIN, HIGH); // 打开LED灯
+      digitalWrite(YDIFLY_LED_PIN, LOW); // 熄灭LED灯
       led_sta = 0;
     }
     delay(YDIFLY_LED_CYCLE);
@@ -134,6 +145,7 @@ void setup() {
   digitalWrite(YDIFLY_LED_PIN, HIGH); // 连接上遥控，LED常亮
   ydifly.sys_time_ms = millis();      // 更新系统时间
   ydifly.sys_time_ms_last = millis(); // 初始化以往时间
+  ydifly.imu_time_ms_last = millis(); // 初始化IMU更新时间
 }
 
 void loop() {
@@ -141,7 +153,15 @@ void loop() {
   float angle_l_add, angle_l_mid, angle_r_add, angle_r_mid, control_T;
 
   ydifly.sys_time_ms = millis();      // 更新系统时间
-  
+
+  /* IMU 姿态更新，100Hz（周期 YDIFLY_IMU_CYCLE = 10ms） */
+  if( ydifly.sys_time_ms - ydifly.imu_time_ms_last >= YDIFLY_IMU_CYCLE )
+  {
+    ydifly.imu_time_ms_last = ydifly.sys_time_ms;   // 记录本次更新时间
+    IMU_Update();                                   // 读取IMU并用Mahony更新四元数/欧拉角
+    // 姿态可通过 IMU_GetRoll()/IMU_GetPitch()/IMU_GetYaw() 读取（单位：弧度）
+  }
+
   if( ydifly.sys_time_ms - ydifly.sys_time_ms_last >= YDIFLY_CONTROL_CYCLE )
   {
     float temp = 0;

@@ -1,4 +1,6 @@
 #include <BasicLinearAlgebra.h>
+#include <LSM6DS3.h>
+#include <Wire.h>
 using namespace BLA;
 class IMU{
   Matrix<4,1> q_;
@@ -103,4 +105,76 @@ class IMU{
   Matrix<3,1> getEulerangle(){
     return eulerangle;
   }
+  Matrix<4,1> getQuat(){
+    return q_;
+  }
 };
+
+/* ==========================================================================
+ *  LSM6DS3 硬件读取 + Mahony 姿态维护（对外提供 C 风格自由函数，便于 .ino 跨文件调用）
+ *
+ *  说明：
+ *   - 读取方式与 IMU_Capture 一致，使用 LSM6DS3 库经 I2C 读取加速度/角速度；
+ *   - 加速度单位为 G（Mahony 内部会归一化，单位不影响）；
+ *   - 陀螺仪库返回单位为 deg/s，而 Mahony 四元数微分方程需要 rad/s，故乘以 DEG2RAD；
+ *   - update() 内部用 micros() 自行计算 dt，故本文件只需按固定频率调用即可；
+ *   - 欧拉角单位为弧度（roll/pitch/yaw = eulerangle(0/1/2)）。
+ * ========================================================================== */
+
+#define IMU_DEG2RAD   0.017453292519943295f   // PI/180
+
+static LSM6DS3 g_imuSensor(I2C_MODE, 0x6A);    // I2C 地址 0x6A，与 IMU_Capture 相同
+static IMU*    g_imu       = nullptr;          // Mahony 姿态解算对象
+static bool    g_imuReady  = false;
+static float   g_roll = 0.0f, g_pitch = 0.0f, g_yaw = 0.0f;   // 欧拉角，单位：弧度
+
+/* 初始化 IMU：配置传感器，并用初始加速度确定初始四元数。返回 true 表示成功 */
+bool IMU_Init()
+{
+    Wire.begin();
+    if( g_imuSensor.begin() != 0 )
+    {
+        g_imuReady = false;
+        return false;                          // 传感器初始化失败
+    }
+
+    /* 用当前加速度作为初始重力方向，确定初始姿态 */
+    Matrix<3,1> a;
+    a(0) = g_imuSensor.readFloatAccelX();
+    a(1) = g_imuSensor.readFloatAccelY();
+    a(2) = g_imuSensor.readFloatAccelZ();
+
+    static IMU imuInstance(a);                  // 静态局部对象，避免动态内存分配
+    g_imu      = &imuInstance;
+    g_imuReady = true;
+    return true;
+}
+
+/* 读取一次 IMU 并更新姿态（四元数 + 欧拉角）。建议以 100Hz 调用 */
+void IMU_Update()
+{
+    if( !g_imuReady || g_imu == nullptr ) return;
+
+    Matrix<3,1> acc;
+    acc(0) = g_imuSensor.readFloatAccelX();
+    acc(1) = g_imuSensor.readFloatAccelY();
+    acc(2) = g_imuSensor.readFloatAccelZ();
+
+    Matrix<3,1> gyro;                           // deg/s -> rad/s
+    gyro(0) = g_imuSensor.readFloatGyroX() * IMU_DEG2RAD;
+    gyro(1) = g_imuSensor.readFloatGyroY() * IMU_DEG2RAD;
+    gyro(2) = g_imuSensor.readFloatGyroZ() * IMU_DEG2RAD;
+
+    g_imu->update(gyro, acc);                   // Mahony 更新四元数与欧拉角
+
+    Matrix<3,1> e = g_imu->getEulerangle();
+    g_roll  = e(0);
+    g_pitch = e(1);
+    g_yaw   = e(2);
+}
+
+/* 姿态读取接口（弧度） */
+bool  IMU_IsReady() { return g_imuReady; }
+float IMU_GetRoll()  { return g_roll;  }
+float IMU_GetPitch() { return g_pitch; }
+float IMU_GetYaw()   { return g_yaw;   }
