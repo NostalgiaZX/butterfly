@@ -16,10 +16,11 @@
  */
 #include <AlfredoCRSF.h>
 #include <ESP32Servo.h>
+#include <HardwareSerial.h>
 /******************** 基本参数 ******************* */
-#define YDIFLY_SERVO_L_PIN                  10       // 引脚设置
-#define YDIFLY_SERVO_R_PIN                  9      // 引脚设置
-#define YDIFLY_LED_PIN                      16      // 引脚设置
+#define YDIFLY_SERVO_L_PIN                  D5       // 引脚设置
+#define YDIFLY_SERVO_R_PIN                  D4      // 引脚设置
+#define YDIFLY_LED_PIN                      10      // 引脚设置
 
 #define YDIFLY_REMOTE_JOY_MID               1500    // 遥控摇杆的中间值
 
@@ -88,12 +89,13 @@ typedef struct
     ydifly_remote_cmd_t remote;     // 遥控相关参数
     ydifly_remote_cmd_t remote_last;// 上一次遥控参数
 }ydifly_control_t;
-
+HardwareSerial MySerial(0);   //Create a new HardwareSerial class -- D6/D7
 ydifly_control_t ydifly;
 AlfredoCRSF crsf;
 Servo servo_l, servo_r;
 float time_now = 0;
 float time_init = 0;
+float debug=0;
 static void ReceiverData( ydifly_remote_cmd_t* remote );
 static void YDIFlyServoSinControl( float l_angle_max, float l_angle_min, float r_angle_max, float r_angle_min, float T, float speed_diff );
 static void YDIServoAngleControl( ydifly_servo_name_e name, float angle );
@@ -102,19 +104,15 @@ void setup() {
   // put your setup code here, to run once:   
   pinMode(YDIFLY_LED_PIN,OUTPUT);     // 初始化LED灯控制引脚
   digitalWrite(YDIFLY_LED_PIN, HIGH); // 打开LED灯
+  
+  Serial.begin(115200); // 初始化串口
+  MySerial.begin(CRSF_BAUDRATE, SERIAL_8N1, -1, -1); // at CPU Freq is 40MHz, work half speed of defined.
+  //Serial1.begin(CRSF_BAUDRATE,SERIAL_8N1,D7,D6);
+  crsf.begin(MySerial);                                  // 初始化接收机
 
-  Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1, 20, 21);     // 初始化串口 RX=GPIO20, TX=GPIO21
-  crsf.begin(Serial1);                                  // 初始化接收机
-
-  servo_l.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 初始化 L 舵机引脚
-  servo_r.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 初始化 R 舵机引脚
-  YDIServoAngleControl( SERVO_L, YDIFLY_SERVO_ANGLE_L_INIT );
-  YDIServoAngleControl( SERVO_R, YDIFLY_SERVO_ANGLE_R_INIT );
-
-  while( crsf.getChannel(3) < 800 )   // 检测是否连接到遥控
+  while( !crsf.isLinkUp() )   // 检测是否连接到遥控，未连接前不初始化舵机、不输出PWM
   {
     static uint8_t led_sta = 0;
-
     crsf.update();
 
     /* LED灯闪烁 */
@@ -132,6 +130,12 @@ void setup() {
   }
 
   digitalWrite(YDIFLY_LED_PIN, HIGH); // 连接上遥控，LED常亮
+
+  servo_l.attach(YDIFLY_SERVO_R_PIN, 500, 2500); // 连接遥控后才初始化 L 舵机引脚，开始输出PWM
+  servo_r.attach(YDIFLY_SERVO_L_PIN, 500, 2500); // 连接遥控后才初始化 R 舵机引脚，开始输出PWM
+  YDIServoAngleControl( SERVO_L, YDIFLY_SERVO_ANGLE_L_INIT );
+  YDIServoAngleControl( SERVO_R, YDIFLY_SERVO_ANGLE_R_INIT );
+
   ydifly.sys_time_ms = millis();      // 更新系统时间
   ydifly.sys_time_ms_last = millis(); // 初始化以往时间
 }
